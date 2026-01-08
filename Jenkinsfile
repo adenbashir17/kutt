@@ -79,17 +79,16 @@ pipeline {
                 script {
                     def buildArgs = "--build-arg BUILD_DATE=${BUILD_DATE} --build-arg VCS_REF=${VCS_REF} --build-arg VERSION=${env.GIT_COMMIT?.take(7) ?: 'dev'}"
                     
-                    def dockerImage = docker.build(
-                        "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}",
-                        "${buildArgs} ."
-                    )
+                    // Build Docker image using sh command (works without Docker Pipeline plugin)
+                    sh """
+                        docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${buildArgs} .
+                        docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${DOCKER_IMAGE_NAME}:latest
+                    """
                     
-                    // Also tag with additional tags
-                    dockerImage.tag("${DOCKER_IMAGE_NAME}:latest")
-                    
+                    // Tag with branch name if available
                     if (env.GIT_BRANCH) {
                         def branchName = env.GIT_BRANCH.replace('origin/', '').replace('/', '-')
-                        dockerImage.tag("${DOCKER_IMAGE_NAME}:${branchName}")
+                        sh "docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${DOCKER_IMAGE_NAME}:${branchName}"
                     }
                     
                     echo "Docker image built: ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
